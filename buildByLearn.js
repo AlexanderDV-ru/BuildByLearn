@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         StudyWorld
+// @name         BuildByLearn
 // @namespace    http://tampermonkey.net/
-// @version      0.0.1
+// @version      0.0.2
 // @description  you can build your palace for your points from duolingo and other sites for learning languages
 // @author       https://github.com/AlexanderDV-ru
 // @match        https://www.duolingo.com/profile/*
@@ -26,6 +26,8 @@
         }
         else document.body.appendChild(pane)
 
+        let allPoints,rects=[]
+
         let upd=document.createElement("button")
         upd.innerHTML="Update"
         pane.appendChild(upd)
@@ -33,6 +35,19 @@
         let color=document.createElement("input")
         color.placeholder="color"
         pane.appendChild(color)
+
+        let brushSizeInput=document.createElement("input")
+        brushSizeInput.placeholder="Brush size"
+        pane.appendChild(brushSizeInput)
+
+        let clearButton=document.createElement("button")
+        clearButton.innerHTML="Clear"
+        pane.appendChild(clearButton)
+        clearButton.onclick=()=>upd.onclick(localStorage.studyWorld_rects=JSON.stringify(rects=[]))
+
+        let allPointsSpan=document.createElement("span")
+        pane.appendChild(allPointsSpan)
+        allPointsSpan.onclick=()=>allPointsSpan.innerHTML=Math.floor(allPoints)
 
         pane.appendChild(document.createElement("br"))
 
@@ -54,7 +69,8 @@
                 else table.push(l.replace(/[0-9) ]/g,"").split("("))
 
             ctx.clearRect(0,0,500,500)
-            let allPoints=0,rects=[]
+            allPoints=0
+            rects=JSON.parse(localStorage.studyWorld_rects)
 
             let points={}
             for(let t of table)
@@ -62,23 +78,29 @@
                 points[t[0]]=Number(points[t[0]]||0)+Number(t[2])
                 allPoints+=Number(t[2])
             }
-            console.log(langs, table, points)
+            console.log(langs, table, points,rects)
             let text="INFO"
 
             for(let p in points)
                 text+="<br><span>"+p+": "+points[p]+"</span>"
             info.innerHTML=text
 
-            let size=Math.cbrt(allPoints)
-            canv.onmousedown=(e)=>{
-                if(allPoints>0)
-                {
-                    ctx.fillStyle=color.value||"black"
-                    ctx.fillRect(e.offsetX,e.offsetY,size,size)
-                    rects.push([e.offsetX,e.offsetY,size,size])
-                    allPoints-=size*size
-                }
+            let defaultBrushSize=Math.cbrt(allPoints)
+            function fillRect(rect,no){
+                if(allPoints-rect.size*rect.size<0)
+                    return
+                ctx.fillStyle=rect.color
+                ctx.fillRect(rect.x,rect.y,rect.size,rect.size)
+                allPoints-=rect.size*rect.size
+                allPointsSpan.onclick()
+                if(!no)
+                    rects.push(rect)
+                localStorage.studyWorld_rects=JSON.stringify(rects)
             }
+            for(let rect of rects)
+                fillRect(rect,1)
+            allPointsSpan.onclick()
+            canv.onmousedown=(e)=>(allPoints>0?fillRect({x:e.offsetX,y:e.offsetY,size:brushSizeInput.value||defaultBrushSize,color:color.value||"black"}):0)
         }
     },1000)
 })();
